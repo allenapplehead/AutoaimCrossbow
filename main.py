@@ -1,13 +1,25 @@
 from move import *
 from time import sleep
 
-"""
-turnAndTilt(45, 20, 100, 60)
-sleep(3)
-turnAndTilt(0, 0, 50, 30)
-cleanup_motors()
-"""
+# Motor threading Tests
+turnAndTilt(10, 3)
+sleep(2)
+turnAndTilt(-10, 3)
 
+# Velocity Control Tests
+moveTilterByVel(10)
+sleep(0.5)
+moveTilterByVel(-5)
+sleep(1)
+moveTilterByVel(0)
+
+moveTurntableByVel(30)
+sleep(1)
+moveTurntableByVel(-30)
+sleep(1)
+moveTurntableByVel(0)
+
+# Absolute Position Control Tests
 moveTurntable(45, 100)
 moveTurntable(-45, 100)
 moveTurntable(0, 50)

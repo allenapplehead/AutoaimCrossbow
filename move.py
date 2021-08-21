@@ -1,6 +1,5 @@
 import ev3_dc as ev3
 from time import sleep
-from thread_task import Task, Repeated, Sleep
 
 # CONSTANTS
 turntableGR = 60 / 8
@@ -20,6 +19,16 @@ def moveTurntable(moveToDeg, vel):
     mvmt_plan.join()
     print("Moved turntable to deg:", turntableMotor.position)
 
+def moveTurntableByVel(vel):
+    if vel == 0:
+        turntableMotor.stop()
+        return
+    turntableMotor.speed = abs(vel)
+    d = 1
+    if vel < 0:
+        d = -1
+    turntableMotor.start_move(direction=d)
+
 def moveTilter(moveToDeg, vel):
     mvmt_plan=(
     tilterMotor.move_to(moveToDeg, speed=vel, ramp_up=50, ramp_down=50, brake=True) +
@@ -29,19 +38,15 @@ def moveTilter(moveToDeg, vel):
     mvmt_plan.join()
     print("Moved tilter to deg:", tilterMotor.position)
 
-def turnAndTilt(turntableDeg, tilterDeg, turntableVel, tilterVel):
-    mvmt_plan_turn=(
-        turntableMotor.move_to(int(turntableDeg * turntableGR), speed=turntableVel, ramp_up=turntableVel+10, ramp_down=turntableVel+10, brake=True) +
-        turntableMotor.stop_as_task(brake=False)
-    )
-    mvmt_plan_tilt=(
-        tilterMotor.move_to(tilterDeg, speed=tilterVel, ramp_up=50, ramp_down=50, brake=True) +
-        tilterMotor.stop_as_task(brake=True)
-    )
-    t = Task(mvmt_plan_turn.start) + Task(mvmt_plan_tilt.start)
-    t.start()
-    t.stop()
-    print("Moved turntable to deg:", turntableMotor.position, " and tilter to deg:", tilterMotor.position)
+def moveTilterByVel(vel):
+    if vel == 0:
+        tilterMotor.stop()
+        return
+    tilterMotor.speed = abs(vel)
+    d = 1
+    if vel < 0:
+        d = -1
+    tilterMotor.start_move(direction=d)
 
 def moveShooter(numShots):
     mvmt_plan=(
@@ -51,6 +56,39 @@ def moveShooter(numShots):
     mvmt_plan.start()
     mvmt_plan.join()
     print("Moved shooter to deg:", shooterMotor.position)
+
+def turnAndTilt(turnVel, tiltVel):
+    d1 = 1
+    d2 = 1
+    if turnVel < 0:
+        d1 = -1
+        turnVel *= -1
+    if tiltVel < 0:
+        d2 = -1
+        tiltVel *= -1
+    t1 = turntableMotor.move_for(
+        1,
+        speed = turnVel,
+        direction = d1,
+        ramp_up_time = 0,
+        ramp_down_time = 0
+    )
+    t2 = tilterMotor.move_for(
+        1,
+        speed = tiltVel,
+        direction = d2,
+        ramp_up_time = 0,
+        ramp_down_time=0
+    )
+    t1.start()
+    t2.start()
+    
+    t1.join()
+    t2.join()
+
+    print("Moved turntable to deg:", turntableMotor.position, "and tilter to deg:", tilterMotor.position)
+    t1.stop()
+    t2.stop()
 
 def cleanup_motors():
     # Make sure no motor is left on brake when program ends
