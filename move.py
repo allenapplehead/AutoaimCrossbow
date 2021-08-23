@@ -1,5 +1,6 @@
 import ev3_dc as ev3
 from time import sleep
+from thread_task import Sleep
 
 # CONSTANTS
 turntableGR = 60 / 8
@@ -50,7 +51,8 @@ def moveTilterByVel(vel):
 
 def moveShooter(numShots):
     mvmt_plan=(
-    shooterMotor.move_to(shooterMotor.position + 360 * numShots, speed=100, ramp_up=60, ramp_down=60, brake=True) +
+    shooterMotor.move_to(shooterMotor.position + 360 * numShots, speed=100, ramp_up=40, ramp_down=40, brake=True) +
+    Sleep(0.1) +
     shooterMotor.stop_as_task(brake=False)
     )
     mvmt_plan.start()

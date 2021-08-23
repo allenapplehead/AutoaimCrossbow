@@ -2,8 +2,8 @@
 import cv2
 
 # CONSTANTS
-webcamXOffset = 20
-webcamYOffset = 155
+webcamXOffset = 12
+webcamYOffset = 150
 
 # define a video capture object
 vid = cv2.VideoCapture(0)
