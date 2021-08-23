@@ -50,7 +50,7 @@ def moveTilterByVel(vel):
 
 def moveShooter(numShots):
     mvmt_plan=(
-    shooterMotor.move_to(360 * numShots, speed=100, ramp_up=100, ramp_down=100, brake=True) +
+    shooterMotor.move_to(shooterMotor.position + 360 * numShots, speed=100, ramp_up=60, ramp_down=60, brake=True) +
     shooterMotor.stop_as_task(brake=False)
     )
     mvmt_plan.start()
@@ -92,12 +92,13 @@ def turnAndTilt(turnVel, tiltVel):
 
 def cleanup_motors():
     # Make sure no motor is left on brake when program ends
-    for _ in range(2):
-        turntableMotor.move_by(0).start()
-        tilterMotor.move_by(0).start()
-        shooterMotor.move_by(0).start()
+    sleep(1)
+    
+    turntableMotor.move_by(0).start()
+    tilterMotor.move_by(0).start()
+    #shooterMotor.move_by(0).start()
 
-        sleep(1)
+    sleep(1)
 
     if (turntableMotor.busy or tilterMotor.busy or shooterMotor.busy):
         print("Error motors are not relaxed")
