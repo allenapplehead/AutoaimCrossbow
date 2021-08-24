@@ -1,6 +1,9 @@
 from move import *
 from time import sleep
 
+turnAndTilt(30, 5)
+turnAndTilt(-30, 0)
+
 while(True):
     input("Shoot")
     moveShooter(1)

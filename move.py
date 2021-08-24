@@ -5,6 +5,21 @@ from thread_task import Sleep
 # CONSTANTS
 turntableGR = 60 / 8
 mac = '00:16:53:49:67:10'
+turnKp = 0.075
+turnKi = 0.01
+turnKd = 0.05
+turnIActiveZone = 10
+# I HONESTLY THINK A DECELERATION FUNCTION WOULD WORK MUCH BETTER HERE
+
+tiltKp = 0.025
+tiltKi = 0
+tiltKd = 0
+
+# GLOBAL VARS
+lastTurnError = 0
+lastTiltError = 0
+turnErrorSum = 0
+tiltErrorSum = 0
 
 # INITITIALIZE MOTORS
 turntableMotor = ev3.Motor(ev3.PORT_A, protocol=ev3.USB, host=mac)
@@ -51,7 +66,7 @@ def moveTilterByVel(vel):
 
 def moveShooter(numShots):
     mvmt_plan=(
-    shooterMotor.move_to(shooterMotor.position + 360 * numShots, speed=100, ramp_up=40, ramp_down=40, brake=True) +
+    shooterMotor.move_to(shooterMotor.position + 362 * numShots, speed=100, ramp_up=0, ramp_down=0, brake=True) +
     Sleep(0.1) +
     shooterMotor.stop_as_task(brake=False)
     )
@@ -62,28 +77,45 @@ def moveShooter(numShots):
 def turnAndTilt(turnVel, tiltVel):
     d1 = 1
     d2 = 1
-    if turnVel < 0:
-        d1 = -1
-        turnVel *= -1
-    if tiltVel < 0:
-        d2 = -1
-        tiltVel *= -1
-    t1 = turntableMotor.move_for(
-        1,
-        speed = turnVel,
-        direction = d1,
-        ramp_up_time = 0,
-        ramp_down_time = 0
-    )
-    t2 = tilterMotor.move_for(
-        1,
-        speed = tiltVel,
-        direction = d2,
-        ramp_up_time = 0,
-        ramp_down_time=0
-    )
-    t1.start()
-    t2.start()
+
+    if turnVel != 0:
+        if turnVel < 0:
+            d1 = -1
+            turnVel *= -1
+        t1 = turntableMotor.move_for(
+            0.5,
+            speed = turnVel,
+            direction = d1,
+            ramp_up_time = 0,
+            ramp_down_time = 0
+        )
+        t1.start()
+    else:
+        t1 = (
+            turntableMotor.move_to(turntableMotor.position, speed=100, ramp_up=0, ramp_down=0, brake=True) +
+            turntableMotor.stop_as_task(brake=True)
+        )
+        t1.start()
+        
+    if tiltVel != 0:
+        if tiltVel < 0:
+            d2 = -1
+            tiltVel *= -1
+        
+        t2 = tilterMotor.move_for(
+            0.5,
+            speed = tiltVel,
+            direction = d2,
+            ramp_up_time = 0,
+            ramp_down_time=0
+        )
+        t2.start()
+    else:
+        t2 = (
+            tilterMotor.move_to(tilterMotor.position, speed=100, ramp_up=0, ramp_down=0, brake=True) +
+            tilterMotor.stop_as_task(brake=True)
+        )
+        t2.start()
     
     t1.join()
     t2.join()
@@ -91,6 +123,33 @@ def turnAndTilt(turnVel, tiltVel):
     print("Moved turntable to deg:", turntableMotor.position, "and tilter to deg:", tilterMotor.position)
     t1.stop()
     t2.stop()
+
+def turnAndTiltPID(turnError, tiltError):
+    global lastTurnError, lastTiltError, turnErrorSum, tiltErrorSum
+    turnErrorDiff = turnError - lastTurnError
+    lastTurnError = turnError
+    turnErrorSum += lastTurnError
+    turnSpeed = turnKp * turnError + turnKi * turnErrorSum + turnKd * turnErrorDiff
+    if abs(turnError) > turnIActiveZone:
+        turnSpeed -= turnKi * turnErrorSum
+    if abs(turnSpeed) > 100:
+        if turnSpeed > 0:
+            turnSpeed = 100
+        else:
+            turnSpeed = -100
+
+    tiltErrorDiff= tiltError - lastTiltError
+    lastTiltError = tiltError
+    tiltErrorSum += lastTiltError
+    tiltSpeed = tiltKp * tiltError + tiltKi * tiltErrorSum + tiltKd * tiltErrorDiff
+    
+    if abs(tiltSpeed) > 100:
+        if tiltSpeed > 0:
+            tiltSpeed = 100
+        else:
+            tiltSpeed = -100
+    
+    turnAndTilt(int(turnSpeed), int(tiltSpeed))
 
 def cleanup_motors():
     # Make sure no motor is left on brake when program ends

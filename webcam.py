@@ -1,7 +1,7 @@
 # import the opencv library
 import cv2
 
-# CONSTANTS
+# CONSTANTS (at 25.5 inches shooting distance)
 webcamXOffset = 12
 webcamYOffset = 150
 
