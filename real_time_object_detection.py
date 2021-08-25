@@ -18,6 +18,9 @@ from move import *
 webcamXOffset = 12
 webcamYOffset = 150
 focalLength = 452.17391304347825
+perpDist = 60
+k = 0.114805
+lastTurntableAngle = 0
 
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
@@ -25,34 +28,15 @@ ap.add_argument('-p', '--prototxt', required=True,
                 help="path to Caffe 'deploy' prototxt file")
 ap.add_argument('-m', '--model', required=True,
                 help='path to Caffe pre-trained model')
-ap.add_argument('-c', '--confidence', type=float, default=0.7,
+ap.add_argument('-c', '--confidence', type=float, default=0.8,
                 help='minimum probability to filter weak detections')
 args = vars(ap.parse_args())
 
 # initialize the list of class labels MobileNet SSD was trained to
 # detect, then generate a set of bounding box colors for each class
-CLASSES = [
-    'background',
-    'aeroplane',
-    'bicycle',
-    'bird',
-    'boat',
-    'bottle',
-    'bus',
-    'car',
-    'cat',
-    'chair',
-    'cow',
-    'diningtable',
-    'dog',
-    'horse',
-    'motorbike',
-    'person',
-    'pottedplant',
-    'sheep',
-    'sofa',
-    'train',
-    'tvmonitor',
+CLASSES = ['background', 'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car',
+    'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike', 'person',
+    'pottedplant', 'sheep', 'sofa', 'train', 'tvmonitor',
     ]
 COLORS = np.random.uniform(0, 0xFF, size=(len(CLASSES), 3))
 
@@ -69,7 +53,6 @@ fps = FPS().start()
 
 # loop over the frames from the video stream
 while True:
-
     # Targets
     tgts = []
 
@@ -107,30 +90,19 @@ while True:
             (startX, startY, endX, endY) = box.astype('int')
 
             # Get the center point of the bounding box
-            tgts.append((startX + (endX - startX) // 2, startY + (endY - startY) // 2, startX, endX, startY, endY))
+            tgts.append((startX + (endX - startX) // 2, startY + (endY - startY) // 2))
 
             # draw the prediction on the frame
             label = '{}: {:.2f}%'.format(CLASSES[idx], confidence * 100)
-            cv2.rectangle(frame, (startX, startY), (endX, endY),
-                          COLORS[idx], 2)
+            cv2.rectangle(frame, (startX, startY), (endX, endY), COLORS[idx], 2)
             y = (startY - 15 if startY - 15 > 15 else startY + 15)
-            cv2.putText(
-                frame,
-                label,
-                (startX, y),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5,
-                COLORS[idx],
-                2,
-                )
+            cv2.putText(frame, label, (startX, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, COLORS[idx], 2,)
 
     # Draw crosshair
     crosshairX = w // 2 + int(webcamXOffset * (400 / wOld))
     crosshairY = h // 2 + int(webcamYOffset * (400 / wOld))
-    cv2.circle(frame, (crosshairX, crosshairY), 5, (0xFF, 0xFF, 0xFF),
-               1)
-    cv2.circle(frame, (crosshairX, crosshairY), 10, (0xFF, 0xFF, 0xFF),
-               2)
+    cv2.circle(frame, (crosshairX, crosshairY), 5, (0xFF, 0xFF, 0xFF), 1)
+    cv2.circle(frame, (crosshairX, crosshairY), 10, (0xFF, 0xFF, 0xFF), 2)
 
     # show the output frame
     cv2.imshow('Frame', frame)
@@ -151,6 +123,7 @@ while True:
     else:
         print ('Nearest target found at:', tgts[nearestTgtId][0], tgts[nearestTgtId][1])
 
+    """
     # Find the distance to that target
     if nearestTgtId != -1:
         p = tgts[nearestTgtId][3] - tgts[nearestTgtId][2]
@@ -158,10 +131,28 @@ while True:
         f = (p * 60) / w 
         d = (w * focalLength) / p
         print("DISTANCE TO OBJ:", d)
-    
+
+    # Find turntable angle the turret needs to turn to
+    if nearestTgtId != -1:
+        opp = (tgts[nearestTgtId][0] - crosshairX) * k
+        print("opp:", opp)
+        theta = math.atan(opp / perpDist) * (180/math.pi)
+        print("theta:", theta)
+        tgtAngle = theta - lastTurntableAngle
+        print("tgtAng:", tgtAngle)
+        lastTurnTableAngle = theta
+        print(tgtAngle)
+        moveTurntable(tgtAngle, 30)
+    """
+
     # Aim the bow at the center of the target
-    #if (nearestTgtId != -1):
-    #    turnAndTiltPID(tgts[nearestTgtId][0] - crosshairX, -(tgts[nearestTgtId][1] - crosshairY))
+    if (nearestTgtId != -1):
+        turnAndTiltPID(tgts[nearestTgtId][0] - crosshairX, -(tgts[nearestTgtId][1] - crosshairY))
+
+        # Shoot if the target is aimed
+        if (abs(tgts[nearestTgtId][0] - crosshairX) < 2):
+            moveShooter(1)
+            print("SHOOT")
 
     # Clear the targets list for next iteration
     tgts = []

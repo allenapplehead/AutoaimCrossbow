@@ -3,13 +3,12 @@ from time import sleep
 from thread_task import Sleep
 
 # CONSTANTS
-turntableGR = 60 / 8
+turntableGR = 56 / 8
 mac = '00:16:53:49:67:10'
 turnKp = 0.075
-turnKi = 0.01
+turnKi = 0
 turnKd = 0.05
 turnIActiveZone = 10
-# I HONESTLY THINK A DECELERATION FUNCTION WOULD WORK MUCH BETTER HERE
 
 tiltKp = 0.025
 tiltKi = 0
@@ -48,7 +47,7 @@ def moveTurntableByVel(vel):
 def moveTilter(moveToDeg, vel):
     mvmt_plan=(
     tilterMotor.move_to(moveToDeg, speed=vel, ramp_up=50, ramp_down=50, brake=True) +
-    shooterMotor.stop_as_task(brake=True)
+    tilterMotor.stop_as_task(brake=True)
     )
     mvmt_plan.start()
     mvmt_plan.join()
@@ -56,7 +55,7 @@ def moveTilter(moveToDeg, vel):
 
 def moveTilterByVel(vel):
     if vel == 0:
-        tilterMotor.stop()
+        tilterMotor.stop(brake=True)
         return
     tilterMotor.speed = abs(vel)
     d = 1
@@ -83,7 +82,7 @@ def turnAndTilt(turnVel, tiltVel):
             d1 = -1
             turnVel *= -1
         t1 = turntableMotor.move_for(
-            0.5,
+            0.25,
             speed = turnVel,
             direction = d1,
             ramp_up_time = 0,
@@ -103,7 +102,7 @@ def turnAndTilt(turnVel, tiltVel):
             tiltVel *= -1
         
         t2 = tilterMotor.move_for(
-            0.5,
+            0.25,
             speed = tiltVel,
             direction = d2,
             ramp_up_time = 0,
@@ -137,19 +136,20 @@ def turnAndTiltPID(turnError, tiltError):
             turnSpeed = 100
         else:
             turnSpeed = -100
-
-    tiltErrorDiff= tiltError - lastTiltError
-    lastTiltError = tiltError
-    tiltErrorSum += lastTiltError
-    tiltSpeed = tiltKp * tiltError + tiltKi * tiltErrorSum + tiltKd * tiltErrorDiff
-    
-    if abs(tiltSpeed) > 100:
-        if tiltSpeed > 0:
-            tiltSpeed = 100
+    if abs(turnSpeed) < 1 and abs(turnSpeed) > 0.2:
+        if turnSpeed > 0:
+            turnSpeed = 1
         else:
-            tiltSpeed = -100
+            turnSpeed = -1
     
-    turnAndTilt(int(turnSpeed), int(tiltSpeed))
+    # We use bang bang control for tilt because the tilter doesn't have much values and is kinda sus
+    tiltSpeed = 0
+    if tiltError > 0:
+        tiltSpeed = 1
+    elif tiltError < 0:
+        tiltSpeed = -1
+
+    turnAndTilt(int(turnSpeed), 0 * int(tiltSpeed))
 
 def cleanup_motors():
     # Make sure no motor is left on brake when program ends

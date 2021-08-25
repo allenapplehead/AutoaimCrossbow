@@ -1,12 +1,18 @@
 from move import *
 from time import sleep
 
+moveTurntableByVel(1)
+sleep(5)
+cleanup_motors()
+
+"""
 turnAndTilt(30, 5)
 turnAndTilt(-30, 0)
 
 while(True):
     input("Shoot")
     moveShooter(1)
+"""
 
 """
 moveTilterByVel(1)
@@ -19,7 +25,9 @@ for i in range(2):
     moveShooter(1)
     sleep(5)
 cleanup_motors()
+"""
 
+"""
 # Motor threading Tests
 turnAndTilt(10, 3)
 sleep(2)
