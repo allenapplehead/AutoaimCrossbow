@@ -1,29 +1,62 @@
+from move import *
+from time import sleep
 """
-import ev3_dc as ev3
-
-with ev3.EV3(protocol=ev3.USB) as my_robot:
-    print(my_robot)
+moveTurntableByVel(1)
+sleep(5)
+cleanup_motors()
 """
-import time
-import multiprocessing
+"""
+turnAndTilt(30, 5)
+turnAndTilt(-30, 0)
+"""
+while(True):
+    input("Shoot")
+    moveShooter(1)
 
-def do_something():
-    print("Sleeping 1 second...")
-    time.sleep(1)
-    print("Done Sleeping...")
 
-if __name__ == '__main__':
-    start = time.perf_counter()
+"""
+moveTilterByVel(1)
+sleep(3)
+moveTilterByVel(0)
+
+moveTilter(16, 20)
+sleep(1)
+for i in range(2):
+    moveShooter(1)
+    sleep(5)
+cleanup_motors()
+"""
+
+"""
+# Motor threading Tests
+turnAndTilt(10, 3)
+sleep(2)
+turnAndTilt(-10, 3)
+
+# Velocity Control Tests
+moveTilterByVel(10)
+sleep(0.5)
+moveTilterByVel(-5)
+sleep(1)
+moveTilterByVel(0)
+
+moveTurntableByVel(30)
+sleep(1)
+moveTurntableByVel(-30)
+sleep(1)
+moveTurntableByVel(0)
+
+# Absolute Position Control Tests
+moveTurntable(45, 100)
+moveTurntable(-45, 100)
+moveTurntable(0, 50)
+
+for i in range(30):
+    print("Trying to move to angle:", i)
+    moveTilter(i, 60)
+    sleep(1)
     
-    p1 = multiprocessing.Process(target=do_something)
-    p2 = multiprocessing.Process(target=do_something)
+moveShooter(1)
+cleanup_motors()
+"""
 
-    p1.start()
-    p2.start()
-
-    p1.join()
-    p2.join()
-
-    finish = time.perf_counter()
-
-    print(f'Finished in {round(finish-start, 2)} second(s)')
