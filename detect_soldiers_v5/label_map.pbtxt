@@ -1,0 +1,12 @@
+item { 
+	name:'GreenMachineGunner'
+	id:1
+}
+item { 
+	name:'GreenMultiGunner'
+	id:2
+}
+item { 
+	name:'GreenRadioman'
+	id:3
+}

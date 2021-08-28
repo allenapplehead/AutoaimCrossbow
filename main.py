@@ -34,12 +34,12 @@ def nextTarget(coords, crosshairX, crosshairY):
 
 
 # Load pipeline config and build a detection model
-configs = config_util.get_configs_from_pipeline_file("detect_soldiers_v2/pipeline.config")
+configs = config_util.get_configs_from_pipeline_file("detect_soldiers_v5/pipeline.config")
 detection_model = model_builder.build(model_config=configs['model'], is_training=False)
 
 # Restore checkpoint
 ckpt = tf.compat.v2.train.Checkpoint(model=detection_model)
-ckpt.restore(os.path.join("detect_soldiers_v2", 'ckpt-3')).expect_partial()
+ckpt.restore(os.path.join("detect_soldiers_v5", 'ckpt-3')).expect_partial()
 
 @tf.function
 def detect_fn(image):
@@ -48,7 +48,7 @@ def detect_fn(image):
     detections = detection_model.postprocess(prediction_dict, shapes)
     return detections
 
-category_index = label_map_util.create_category_index_from_labelmap("detect_soldiers_v2/label_map.pbtxt")
+category_index = label_map_util.create_category_index_from_labelmap("detect_soldiers_v5/label_map.pbtxt")
 
 cap = cv2.VideoCapture(0)
 width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -81,7 +81,7 @@ while cap.isOpened():
                 category_index,
                 use_normalized_coordinates=True,
                 max_boxes_to_draw=10,
-                min_score_thresh=.7,
+                min_score_thresh=.65,
                 agnostic_mode=False)
     
     #print(coords)
