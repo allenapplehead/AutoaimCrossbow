@@ -93,7 +93,8 @@ def turnAndTilt(turnVel, tiltVel):
     else:
         t1 = (
             turntableMotor.move_to(turntableMotor.position, speed=100, ramp_up=0, ramp_down=0, brake=True) +
-            turntableMotor.stop_as_task(brake=True)
+            Sleep(0.1) + 
+            turntableMotor.stop_as_task(brake=False)
         )
         t1.start()
         
@@ -153,18 +154,9 @@ def turnAndTiltPID(turnError, tiltError):
     turnAndTilt(int(turnSpeed), 0 * int(tiltSpeed))
 
 def cleanup_motors():
-    # Make sure no motor is left on brake when program ends
-    sleep(1)
-    
-    turntableMotor.move_by(0).start()
-    tilterMotor.move_by(0).start()
-    #shooterMotor.move_by(0).start()
-
-    turntableMotor.move_by(0).start()
-    tilterMotor.move_by(0).start()
-    #shooterMotor.move_by(0).start()
-
-    sleep(1)
+    # Make sure no motor is left on brake when program ends 
+    turnAndTilt(0, 0)
+    moveShooter(0)
 
     if (turntableMotor.busy or tilterMotor.busy or shooterMotor.busy):
         print("Error motors are not relaxed")
