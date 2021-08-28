@@ -5,9 +5,10 @@ from thread_task import Sleep
 # CONSTANTS
 turntableGR = 56 / 8
 mac = '00:16:53:49:67:10'
-turnKp = 0.075
+
+turnKp = 0.015
 turnKi = 0
-turnKd = 0.05
+turnKd = 0
 turnIActiveZone = 10
 
 tiltKp = 0.025
@@ -21,7 +22,7 @@ turnErrorSum = 0
 tiltErrorSum = 0
 
 # INITITIALIZE MOTORS
-turntableMotor = ev3.Motor(ev3.PORT_A, protocol=ev3.USB, host=mac)
+turntableMotor = ev3.Motor(ev3.PORT_A, protocol=ev3.WIFI, host=mac)
 tilterMotor = ev3.Motor(ev3.PORT_C, ev3_obj=turntableMotor)
 shooterMotor = ev3.Motor(ev3.PORT_D, ev3_obj=turntableMotor)
 
@@ -82,7 +83,7 @@ def turnAndTilt(turnVel, tiltVel):
             d1 = -1
             turnVel *= -1
         t1 = turntableMotor.move_for(
-            0.25,
+            0.3,
             speed = turnVel,
             direction = d1,
             ramp_up_time = 0,
@@ -102,7 +103,7 @@ def turnAndTilt(turnVel, tiltVel):
             tiltVel *= -1
         
         t2 = tilterMotor.move_for(
-            0.25,
+            0.3,
             speed = tiltVel,
             direction = d2,
             ramp_up_time = 0,
@@ -136,11 +137,11 @@ def turnAndTiltPID(turnError, tiltError):
             turnSpeed = 100
         else:
             turnSpeed = -100
-    if abs(turnSpeed) < 1 and abs(turnSpeed) > 0.2:
+    if abs(turnSpeed) < 1 and abs(turnSpeed) > 0.1:
         if turnSpeed > 0:
-            turnSpeed = 1
+            turnSpeed = 3
         else:
-            turnSpeed = -1
+            turnSpeed = -3
     
     # We use bang bang control for tilt because the tilter doesn't have much values and is kinda sus
     tiltSpeed = 0
@@ -155,6 +156,10 @@ def cleanup_motors():
     # Make sure no motor is left on brake when program ends
     sleep(1)
     
+    turntableMotor.move_by(0).start()
+    tilterMotor.move_by(0).start()
+    #shooterMotor.move_by(0).start()
+
     turntableMotor.move_by(0).start()
     tilterMotor.move_by(0).start()
     #shooterMotor.move_by(0).start()
