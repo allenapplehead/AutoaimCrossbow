@@ -20,6 +20,9 @@ lastTurnError = 0
 lastTiltError = 0
 turnErrorSum = 0
 tiltErrorSum = 0
+l = 0 # min tilter angle
+r = 25 # max tilter angle
+ranLastTime = 0
 
 # INITITIALIZE MOTORS
 turntableMotor = ev3.Motor(ev3.PORT_A, protocol=ev3.WIFI, host=mac)
@@ -74,59 +77,10 @@ def moveShooter(numShots):
     mvmt_plan.join()
     print("Moved shooter to deg:", shooterMotor.position)
 
-def turnAndTilt(turnVel, tiltVel):
-    d1 = 1
-    d2 = 1
+def turnAndTilt(turnError, tiltError):
+    global lastTurnError, lastTiltError, turnErrorSum, tiltErrorSum, l, r, ranLastTime
 
-    if turnVel != 0:
-        if turnVel < 0:
-            d1 = -1
-            turnVel *= -1
-        t1 = turntableMotor.move_for(
-            0.3,
-            speed = turnVel,
-            direction = d1,
-            ramp_up_time = 0,
-            ramp_down_time = 0
-        )
-        t1.start()
-    else:
-        t1 = (
-            turntableMotor.move_to(turntableMotor.position, speed=100, ramp_up=0, ramp_down=0, brake=True) +
-            Sleep(0.1) + 
-            turntableMotor.stop_as_task(brake=False)
-        )
-        t1.start()
-        
-    if tiltVel != 0:
-        if tiltVel < 0:
-            d2 = -1
-            tiltVel *= -1
-        
-        t2 = tilterMotor.move_for(
-            0.3,
-            speed = tiltVel,
-            direction = d2,
-            ramp_up_time = 0,
-            ramp_down_time=0
-        )
-        t2.start()
-    else:
-        t2 = (
-            tilterMotor.move_to(tilterMotor.position, speed=100, ramp_up=0, ramp_down=0, brake=True) +
-            tilterMotor.stop_as_task(brake=True)
-        )
-        t2.start()
-    
-    t1.join()
-    t2.join()
-
-    print("Moved turntable to deg:", turntableMotor.position, "and tilter to deg:", tilterMotor.position)
-    t1.stop()
-    t2.stop()
-
-def turnAndTiltPID(turnError, tiltError):
-    global lastTurnError, lastTiltError, turnErrorSum, tiltErrorSum
+    # Turntable PID calculations
     turnErrorDiff = turnError - lastTurnError
     lastTurnError = turnError
     turnErrorSum += lastTurnError
@@ -143,20 +97,89 @@ def turnAndTiltPID(turnError, tiltError):
             turnSpeed = 3
         else:
             turnSpeed = -3
-    
-    # We use bang bang control for tilt because the tilter doesn't have much values and is kinda sus
-    tiltSpeed = 0
-    if tiltError > 0:
-        tiltSpeed = 1
-    elif tiltError < 0:
-        tiltSpeed = -1
+    turnVel = int(turnSpeed)
 
-    turnAndTilt(int(turnSpeed), 0 * int(tiltSpeed))
+    d1 = 1
+
+    if turnVel != 0:
+        if turnVel < 0:
+            d1 = -1
+            turnVel *= -1
+        t1 = turntableMotor.move_for(
+            0.2,
+            speed = turnVel,
+            direction = d1,
+            ramp_up_time = 0,
+            ramp_down_time = 0
+        )
+        t1.start()
+    else:
+        t1 = (
+            turntableMotor.move_to(turntableMotor.position, speed=100, ramp_up=0, ramp_down=0, brake=True) +
+            Sleep(0.1) + 
+            turntableMotor.stop_as_task(brake=False)
+        )
+        t1.start()
+
+    # Tilter calculations
+    # Binary searching for the meaning of life (correct tilter angle)
+    if l > r:
+        # reset bsearch
+        print("RESET BSEARCH")
+        l = 0
+        r = 25
+    
+    mid = (l + r) // 2
+
+    if abs(tiltError) <= 18: # an accuracy threshold
+        pass # the current mid value is correct, hold the tilter there
+    else:
+        if ranLastTime % 4 == 0:
+            if tiltError > 0:
+                l = mid + 1
+            elif tiltError < 0:
+                r = mid - 1
+
+        ranLastTime += 1
+    
+        print("BSEARCH DEBUG:", mid, l, r)
+
+        d2 = 1
+
+        t2 = (
+            tilterMotor.move_to(mid, speed=60, ramp_up=100, ramp_down=100, brake=True)
+        )
+
+        t2.start()
+        t2.join()
+
+    t1.join()
+    
+
+    print("Moved turntable to deg:", turntableMotor.position, "and tilter to deg:", tilterMotor.position)
+    t1.stop()
+    #t2.stop()
 
 def cleanup_motors():
     # Make sure no motor is left on brake when program ends 
-    turnAndTilt(0, 0)
-    moveShooter(0)
+    t1 = (
+        turntableMotor.move_to(turntableMotor.position, speed=100, ramp_up=0, ramp_down=0, brake=True) +
+        Sleep(0.1) + 
+        turntableMotor.stop_as_task(brake=False)
+    )
+    t2 = (
+        tilterMotor.move_to(tilterMotor.position, speed=100, ramp_up=0, ramp_down=0, brake=True) +
+        Sleep(0.1) +
+        tilterMotor.stop_as_task(brake=False)
+    )
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
+    t1.stop()
+    t2.stop()
+
+    #moveShooter(0)
 
     if (turntableMotor.busy or tilterMotor.busy or shooterMotor.busy):
-        print("Error motors are not relaxed")
+        print("Error: motors are not relaxed")

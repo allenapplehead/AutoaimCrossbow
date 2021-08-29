@@ -13,7 +13,9 @@ import math
 # CONSTANTS (at 25.5 inches shooting distance)
 webcamXOffset = 12 # in Pixels
 webcamYOffset = 150 # in Pixels
-ACC_THRESHOLD = 4 # in Pixels
+X_ACC_THRESHOLD = 4 # in Pixels
+Y_ACC_THRESHOLD = 18 # in Pixels
+searchOtherTgts = 20
 
 # HELPER FUNCTIONS
 def nextTarget(coords, crosshairX, crosshairY):
@@ -28,7 +30,7 @@ def nextTarget(coords, crosshairX, crosshairY):
             nearestTgtId = i
         i += 1
     if nearestTgtId != -1:
-        print("TARGETTING:", coords[nearestTgtId][0])
+        #print("TARGETTING:", coords[nearestTgtId][0])
         return (int(coords[nearestTgtId][1]) + (int(coords[nearestTgtId][3]) - int(coords[nearestTgtId][1])) // 2, int(coords[nearestTgtId][2]) + (int(coords[nearestTgtId][4]) - int(coords[nearestTgtId][2])) // 2) # Returns (x, y) coords of closest target
     return (-1, -1) # No targets found
 
@@ -53,6 +55,8 @@ category_index = label_map_util.create_category_index_from_labelmap("detect_sold
 cap = cv2.VideoCapture(0)
 width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+cnt = 0 # if cnt equals or is greater than searchOtherTgts then move tilter down and search for another target
 
 while cap.isOpened(): 
     ret, frame = cap.read()
@@ -81,7 +85,7 @@ while cap.isOpened():
                 category_index,
                 use_normalized_coordinates=True,
                 max_boxes_to_draw=10,
-                min_score_thresh=.65,
+                min_score_thresh=.5,
                 agnostic_mode=False)
     
     #print(coords)
@@ -100,13 +104,22 @@ while cap.isOpened():
 
     # Aim at closest target
     if (tgt[0] != -1):
-        turnAndTiltPID(tgt[0] - crosshairX, -(tgt[1] - crosshairY))
+        k = 1
+        if abs(tgt[0] - crosshairX) > 75:
+            k = 0
+        turnAndTilt(tgt[0] - crosshairX, k * -(tgt[1] - crosshairY))
 
         # Shoot if the target is aimed
-        #print(abs(tgt[0] - crosshairX))
-        if (abs(tgt[0] - crosshairX) <= ACC_THRESHOLD):
+        if (abs(tgt[0] - crosshairX) <= X_ACC_THRESHOLD and abs(tgt[1] - crosshairY) <= Y_ACC_THRESHOLD):
             moveShooter(1)
             print("SHOOT")
+        cnt = 0
+    else:
+        cnt += 1
+    
+    if cnt >= searchOtherTgts:
+        cnt = 0
+        moveTilter(0, 10)
 
     if cv2.waitKey(10) & 0xFF == ord('q'):
         cap.release()
