@@ -1,8 +1,8 @@
 # AutoaimCrossbow
 
-This project is a turreted autoaiming autoloading crossbow, with a webcam trained using a relatively fast neural net to detect toy soldiers, aim, and shoot them fully automatically. Accuracy is near perfect at 60cm based on initial testing so far.
+This project is a turreted autoaiming autoloading crossbow, with a webcam trained using a relatively fast neural net to detect toy soldiers, aim, and shoot them fully automatically. Accuracy is near perfect at 60cm. Click on the image below to see it in action.
 
-[![Autoaim Crossbow August 28th Testing](https://img.youtube.com/vi/Op886L5IfEM/0.jpg)](https://youtu.be/Op886L5IfEM)
+[![Autoaim Crossbow August 29th V2](https://img.youtube.com/vi/7apo-4Li0Pk/0.jpg)](https://youtu.be/7apo-4Li0Pk)
 
 ## Software:
 I trained a `SSD MobileNet V2 FPNLite 320x320` object detection model from the TensorFlow Detection Model Zoo to detect green toy soldiers of 3 different types: GreenMachineGunner, GreenMultiGunner, and GreenRadioman. I chose this single shot detector mobilenet due to its high speed as the webcam tracks the targets (toy soldiers) in real time on a live webcam feed. This model is then fed into opencv, which then allows bounding boxes to be drawn around the targets (toy soldiers) live on the camera feed, and informing their exact coordinates, tracking multiple targets at once. As this process is computationally expensive, I am running all code on my computer, and instructing the EV3 Mindstorms brick to execute commands using Christoph Gaukel's ev3 direct commands library `ev3_dc` in python. Multithreading and modified PID control was used to move the pan (turntable) and tilt (tilter) motors to move in a more efficient manner.
