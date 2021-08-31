@@ -6,12 +6,12 @@ from thread_task import Sleep
 turntableGR = 56 / 8
 mac = '00:16:53:49:67:10'
 
-turnKp = 0.015
+turnKp = 0.012
 turnKi = 0
-turnKd = 0
+turnKd = 0.01
 turnIActiveZone = 10
 
-tiltKp = 0.025
+tiltKp = 0.015
 tiltKi = 0
 tiltKd = 0
 
@@ -22,7 +22,9 @@ turnErrorSum = 0
 tiltErrorSum = 0
 l = 0 # min tilter angle
 r = 25 # max tilter angle
+mid = 0
 ranLastTime = 0
+lastAng = 0
 
 # INITITIALIZE MOTORS
 turntableMotor = ev3.Motor(ev3.PORT_A, protocol=ev3.WIFI, host=mac)
@@ -77,8 +79,12 @@ def moveShooter(numShots):
     mvmt_plan.join()
     print("Moved shooter to deg:", shooterMotor.position)
 
+def setLastAng(newAng):
+    global lastAng
+    lastAng = newAng
+
 def turnAndTilt(turnError, tiltError):
-    global lastTurnError, lastTiltError, turnErrorSum, tiltErrorSum, l, r, ranLastTime
+    global lastTurnError, lastTiltError, turnErrorSum, tiltErrorSum, l, r, ranLastTime, lastAng
 
     # Turntable PID calculations
     turnErrorDiff = turnError - lastTurnError
@@ -92,7 +98,7 @@ def turnAndTilt(turnError, tiltError):
             turnSpeed = 100
         else:
             turnSpeed = -100
-    if abs(turnSpeed) < 1 and abs(turnSpeed) > 0.1:
+    if abs(turnSpeed) < 1 and abs(turnSpeed) > 0.05:
         if turnSpeed > 0:
             turnSpeed = 3
         else:
@@ -106,7 +112,7 @@ def turnAndTilt(turnError, tiltError):
             d1 = -1
             turnVel *= -1
         t1 = turntableMotor.move_for(
-            0.2,
+            0.1,
             speed = turnVel,
             direction = d1,
             ramp_up_time = 0,
@@ -117,41 +123,35 @@ def turnAndTilt(turnError, tiltError):
         t1 = (
             turntableMotor.move_to(turntableMotor.position, speed=100, ramp_up=0, ramp_down=0, brake=True) +
             Sleep(0.1) + 
-            turntableMotor.stop_as_task(brake=False)
+            turntableMotor.stop_as_task(brake=True)
         )
         t1.start()
 
     # Tilter calculations
-    # Binary searching for the meaning of life (correct tilter angle)
-    if l > r:
-        # reset bsearch
-        print("RESET BSEARCH")
-        l = 0
-        r = 25
+    inc = 1 + abs(tiltError) // 45
+    if abs(tiltError) <= 6:
+        inc = 0
+    tgtAng = lastAng
+    if ranLastTime % 5 == 0:
+        if tiltError > 0:
+            tgtAng += inc
+        elif tiltError < 0:
+            tgtAng -= inc
     
-    mid = (l + r) // 2
+        print("DEBUG TILTER:", tgtAng, lastAng)
 
-    if abs(tiltError) <= 18: # an accuracy threshold
-        pass # the current mid value is correct, hold the tilter there
-    else:
-        if ranLastTime % 4 == 0:
-            if tiltError > 0:
-                l = mid + 1
-            elif tiltError < 0:
-                r = mid - 1
-
-        ranLastTime += 1
+    ranLastTime += 1
     
-        print("BSEARCH DEBUG:", mid, l, r)
+    d2 = 1
 
-        d2 = 1
-
+    if tgtAng != lastAng:
         t2 = (
-            tilterMotor.move_to(mid, speed=60, ramp_up=100, ramp_down=100, brake=True)
+            tilterMotor.move_to(tgtAng, speed=60, ramp_up=50, ramp_down=50, brake=True)
         )
 
         t2.start()
         t2.join()
+        lastAng = tgtAng
 
     t1.join()
     

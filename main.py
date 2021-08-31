@@ -9,13 +9,21 @@ import numpy as np
 from matplotlib import pyplot as plt
 from move import *
 import math
+from imutils.video import VideoStream
+from imutils.video import FPS
 
 # CONSTANTS (at 25.5 inches shooting distance)
 webcamXOffset = 12 # in Pixels
 webcamYOffset = 150 # in Pixels
 X_ACC_THRESHOLD = 4 # in Pixels
-Y_ACC_THRESHOLD = 18 # in Pixels
-searchOtherTgts = 20
+Y_ACC_THRESHOLD = 7 # in Pixels
+impatience = 70
+aimTime = 3
+
+# CUSTOM OFFSETS FOR SOLDIERS TO AIM AT BODY
+radiomanX = 18   # 18 pixels to the right
+multiGunnerX = -1
+machineGunnerX = 1
 
 # HELPER FUNCTIONS
 def nextTarget(coords, crosshairX, crosshairY):
@@ -31,8 +39,8 @@ def nextTarget(coords, crosshairX, crosshairY):
         i += 1
     if nearestTgtId != -1:
         #print("TARGETTING:", coords[nearestTgtId][0])
-        return (int(coords[nearestTgtId][1]) + (int(coords[nearestTgtId][3]) - int(coords[nearestTgtId][1])) // 2, int(coords[nearestTgtId][2]) + (int(coords[nearestTgtId][4]) - int(coords[nearestTgtId][2])) // 2) # Returns (x, y) coords of closest target
-    return (-1, -1) # No targets found
+        return [int(coords[nearestTgtId][1]) + (int(coords[nearestTgtId][3]) - int(coords[nearestTgtId][1])) // 2, int(coords[nearestTgtId][2]) + (int(coords[nearestTgtId][4]) - int(coords[nearestTgtId][2])) // 2, coords[nearestTgtId][0][2:]] # Returns (x, y, id) coords of closest target
+    return [-1, -1, -1]# No targets found
 
 
 # Load pipeline config and build a detection model
@@ -52,15 +60,20 @@ def detect_fn(image):
 
 category_index = label_map_util.create_category_index_from_labelmap("detect_soldiers_v5/label_map.pbtxt")
 
-cap = cv2.VideoCapture(0)
-width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+print("Starting video stream...")
+cap = VideoStream(src = 0).start()
+sleep(2)
+fps = FPS().start()
 
-cnt = 0 # if cnt equals or is greater than searchOtherTgts then move tilter down and search for another target
+aimed = 0
 
-while cap.isOpened(): 
-    ret, frame = cap.read()
+# Premove tilter a few degrees to account for slop
+moveTilter(5, 40)
+
+while True: 
+    frame = cap.read()
     (h, w) = frame.shape[:2]
+    width, height = w, h
     image_np = np.array(frame)
     
     input_tensor = tf.convert_to_tensor(np.expand_dims(image_np, 0), dtype=tf.float32)
@@ -85,7 +98,7 @@ while cap.isOpened():
                 category_index,
                 use_normalized_coordinates=True,
                 max_boxes_to_draw=10,
-                min_score_thresh=.5,
+                min_score_thresh=.49,
                 agnostic_mode=False)
     
     #print(coords)
@@ -107,22 +120,45 @@ while cap.isOpened():
         k = 1
         if abs(tgt[0] - crosshairX) > 75:
             k = 0
+        
+        # Make minor adjustments based on what type of soldier it is aiming at
+        if (tgt[2] == "GreenRadioman"):
+            tgt[0] += radiomanX
+        elif (tgt[2] == "GreenMultiGunner"):
+            tgt[0] += multiGunnerX
+        elif (tgt[2] == "GreenMachineGunner"):
+            tgt[0] += machineGunnerX
+        print("Targetting:", tgt[2])
+
         turnAndTilt(tgt[0] - crosshairX, k * -(tgt[1] - crosshairY))
 
         # Shoot if the target is aimed
-        if (abs(tgt[0] - crosshairX) <= X_ACC_THRESHOLD and abs(tgt[1] - crosshairY) <= Y_ACC_THRESHOLD):
+        if (aimed >= aimTime and abs(tgt[0] - crosshairX) <= X_ACC_THRESHOLD and abs(tgt[1] - crosshairY) <= Y_ACC_THRESHOLD):
+            # Wait for wobbling to stop
             moveShooter(1)
             print("SHOOT")
-        cnt = 0
+            aimed = 0
+        elif abs(tgt[0] - crosshairX) <= X_ACC_THRESHOLD and abs(tgt[1] - crosshairY) <= Y_ACC_THRESHOLD:
+            aimed += 1
+            print("AIMING:", aimed, "/", aimTime)
+        else:
+            aimed = 0
     else:
-        cnt += 1
-    
-    if cnt >= searchOtherTgts:
-        cnt = 0
-        moveTilter(0, 10)
+        impatience -= 1
+        if impatience < 0:
+            # move tilter back down to check if we missed any soldiers
+            impatience = 70
+            moveTilter(5, 10)
+            setLastAng(tilterMotor.position)
 
     if cv2.waitKey(10) & 0xFF == ord('q'):
-        cap.release()
         cv2.destroyAllWindows()
         cleanup_motors()
         break
+
+    # update fps counter
+    fps.update()
+
+fps.stop()
+print ('[INFO] elapsed time: {:.2f}'.format(fps.elapsed()))
+print ('[INFO] approx. FPS: {:.2f}'.format(fps.fps()))
